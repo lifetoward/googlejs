@@ -1,0 +1,7 @@
+node_modules/**
+package-lock.json
+credentials.json
+creds.json
+*_creds.json
+token.json
+*_token.json

@@ -1,0 +1,19 @@
+{
+  "name": "googlejs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lifetoward/googlejs.git"
+  },
+  "homepage": "https://github.com/lifetoward/googlejs#README.md",
+  "author": "Lifetoward LLC",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "description": "Helpers and conventions for Google APIs",
+  "dependencies": {
+    "googleapis": "^39"
+  },
+  "main": "",
+  "engines": {
+    "node": ">=10"
+  }
+}
