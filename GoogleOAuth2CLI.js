@@ -1,29 +1,61 @@
 /**
- * Use this class to establish authorized access to Google APIs from a CLI.
- * It extends the Google OAuth2 Client class (google.auth.OAuth2) and adds these helps:
- * 1. We persist creds and tokens in the filesystem using a flexible locating convention.
+ * Use this class to establish user-authorized access to Google APIs from a CLI.
+ * It wraps the Google OAuth2 Client class (googleapis:google.auth.OAuth2) adding these helps:
+ * 1. We persist creds and tokens in the Google Secret Manager following conventions.
  * 2. We include logic to obtain web-derived, Google user-specific tokens using the CLI/console
  *    and a web browser interaction.
  * 
- * Usage example:
  * let gaxs = new GoogleOAuth2CLI('https://www.googleapis.com/auth/spreadsheets');
- * let sheets = google.sheets({ version:'v4', gaxs });
- * sheets.spreadsheets.values.get({
- *    spreadsheetId:{SheetUID},
- *    range:'TabName!A2:E',
- * }, (error, response) => {
- *    if (err) throw `Failed to get values: ${err}`;
- *    const rows = response.data.values;
- *    // ... process returned values  
- * });
+ * let sheets = google.sheets({ gaxs.AuthClient });
  */
-const {google:{auth:{OAuth2:GOA2}}} = require('googleapis');
-
-class GoogleOAuth2CLI extends GOA2
+class GoogleOAuth2CLI
 {
   /**
-   * GoogleAuthCLI facilitates the establishment and use of Google Auth tokens for access to Google APIs
-   * within their defined scopes. See https://developers.google.com/identity/protocols/oauth2/scopes .
+   * These metadata labels will be used to specify the kind, source, and usage of the secret(s)
+   * stored in the Google Secret Manager.
+   */
+  static secretLabels = {
+    scheme:'oauth2',
+    context:'local-cli',
+    format:'application/json',
+    encoding:'utf8',
+    usage:'api-client',
+    tier:'dev',
+    user:process.env.HOME,
+    host:process.env.HOSTNAME,  
+    created:'YYYYMMDD',
+    expires:'YYYYMMDD',
+  }
+
+  /**
+   * Ah but isn't it much better to just use the secrets service? Of course!
+   * Load a secret with something like this:
+   * 
+   * You need to let the API locate the file containing the Service Account credentials.
+   * There are 2 ways to do that: 
+   *  1. Set GOOGLE_APPLICATION_CREDENTIALS to the name of the JSON file
+   *  2. Pass the name of the JSON file into the client constructor as {keyFilename}
+   * 
+   * keyFilename = `${process.env.HOME}/.ssh/gc-dev.svcacct.json`
+   * projectId = '535958686510'; // gchome
+   * SecretID = 'local-integrity-guy-dev-oauth2-client'; // name of the secret object
+   * 
+   * const secrets = new (require('@google-cloud/secret-manager').SecretManagerServiceClient)({keyFilename});
+   * secrets.accessSecretVersion({name:`projects/${projectId}/secrets/${SecretID}/versions/latest`})
+   *  .then((out)=>JSON.parse(`${out[0].payload.data}`)) // data comes as Buffer... we put JSON in there
+   *  .catch((err)=>{console.info(`Error ${err.code}:${err.details}`)});
+   * 
+   * This much is enough IF you:
+   * 1. Manage these secrets using the Google Cloud Console.
+   * 2. Stay within a single project where all these Secrets and Service Accounts reside.
+   * 
+   * To date, we've had trouble getting listSecrets to work due to permission errors, but 
+   * we have successfully done getSecret() and getSecretVersion() for the metadata.
+   */
+
+  /**
+   * GoogleOAuth2CLI facilitates the establishment and use of Google Auth tokens for access to Google APIs
+   * according to their scopes. See https://developers.google.com/identity/protocols/oauth2/scopes .
    * We presume a CLI console context by which to obtain or confirm permission decisions.
    * @param {Array|String} scopes Single or list of established authorization scope URI strings
    * @param {String} creds (optional):
@@ -45,7 +77,7 @@ class GoogleOAuth2CLI extends GOA2
     if (creds === null || creds instanceof String) {
 
       let prefix = './';
-      let fs = require('fs');
+      const fs = require('fs');
       if (creds) {
         if (fs.statSync(creds).isDirectory()) {
           // When provided a directory we use standard file names there
@@ -75,12 +107,13 @@ class GoogleOAuth2CLI extends GOA2
   
     } else throw new Error(`Invalid creds parameter.`)
 
-    super(this.ClientID, this.ClientSecret, this.RedirectUI);
+    ({google:{auth:{OAuth2:this.GOA2}}} = require('googleapis'));
+    this.goa2 = new (this.GOA2)(this.ClientID, this.ClientSecret, this.RedirectUI);
 
     if (!this.Token) 
-      this.Token = this.getNewTokenCLI();
+      this.Token = this.goa2.getNewTokenCLI();
     else
-      this.setCredentials(this.Token);
+      this.goa2.setCredentials(this.Token);
 
     // That's it! With the token set for the client, we're ready to roll.
   }
@@ -90,14 +123,14 @@ class GoogleOAuth2CLI extends GOA2
    */
   getNewTokenCLI() 
   {
-    const authUrl = this.generateAuthUrl({access_type:'offline', scope:this.Scopes});
+    const authUrl = this.goa2.generateAuthUrl({access_type:'offline', scope:this.Scopes});
     console.log(`Authorize this app by visiting: ${authUrl}`);
     const rl = require('readline').createInterface({input:process.stdin, output:process.stdout});
     rl.question('Enter the code from that page here: ', (code) => {
       rl.close();
       this.getToken(code, (err, token) => {
         if (err) return console.error('Error while trying to retrieve access token', err);
-        this.setCredentials(this.Token = token);
+        this.goa2.setCredentials(this.Token = token);
 
         // Store the token to disk for later program executions
         if (this.TokenPath) {
@@ -112,4 +145,5 @@ class GoogleOAuth2CLI extends GOA2
 
 } // GoogleOAuth2CLI class
 
-module.export(GoogleOAuth2CLI);
+module.exports = GoogleOAuth2CLI;
+
