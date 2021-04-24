@@ -5,3 +5,6 @@ creds.json
 *_creds.json
 token.json
 *_token.json
+.credscache
+.output/
+

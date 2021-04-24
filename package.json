@@ -8,11 +8,15 @@
   "author": "Lifetoward LLC",
   "version": "0.1.0",
   "license": "Apache-2.0",
-  "description": "Helpers and conventions for Google APIs",
+  "description": "Helpers, comments, and conventions for Google APIs",
   "dependencies": {
-    "googleapis": "^39"
+    "@google-cloud/secret-manager": "^3.1.0",
+    "google-auth-library": "^39"
   },
-  "main": "",
+  "main": "./GoogleOAuth2CLI.js",
+  "exports": {
+    "GoogleOAuth2CLI":"./GoogleOAuth2CLI.js"
+  },
   "engines": {
     "node": ">=10"
   }

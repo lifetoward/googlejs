@@ -5,9 +5,19 @@
  * 2. We include logic to obtain web-derived, Google user-specific tokens using the CLI/console
  *    and a web browser interaction.
  * 
+ * Usage example accessing Google Sheets:
  * let gaxs = new GoogleOAuth2CLI('https://www.googleapis.com/auth/spreadsheets');
- * let sheets = google.sheets({ gaxs.AuthClient });
+ * let sheets = google.sheets({ auth:gaxs.AuthClient });
+ * sheets.spreadsheets.values.get({
+ *    spreadsheetId:{SheetUID},
+ *    range:'TabName!A2:E',
+ * }, (error, response) => {
+ *    if (err) throw `Failed to get values: ${err}`;
+ *    const rows = response.data.values;
+ *    // ... process returned values  
+ * });
  */
+module.exports = 
 class GoogleOAuth2CLI
 {
   /**
@@ -144,6 +154,3 @@ class GoogleOAuth2CLI
   }
 
 } // GoogleOAuth2CLI class
-
-module.exports = GoogleOAuth2CLI;
-
